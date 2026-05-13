@@ -41,11 +41,12 @@ const fn address_from_hex(hex: &str) -> Address {
 const fn addr_bytes_from_hex(hex: &str) -> [u8; 32] {
     let bytes = hex.as_bytes();
     // Tolerate the leading "0x".
-    let (offset, len) = if bytes.len() >= 2 && bytes[0] == b'0' && (bytes[1] == b'x' || bytes[1] == b'X') {
-        (2, bytes.len() - 2)
-    } else {
-        (0, bytes.len())
-    };
+    let (offset, len) =
+        if bytes.len() >= 2 && bytes[0] == b'0' && (bytes[1] == b'x' || bytes[1] == b'X') {
+            (2, bytes.len() - 2)
+        } else {
+            (0, bytes.len())
+        };
     assert!(len == 64, "address hex must be 32 bytes (64 hex chars)");
     let mut out = [0u8; 32];
     let mut i = 0;

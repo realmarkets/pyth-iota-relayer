@@ -1,0 +1,82 @@
+name: Integration
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build-and-test"
+
+      - name: sccache stats (before build)
+        run: sccache --show-stats
+
+      - name: Build workspace
+        run: cargo build --workspace --locked
+
+      - name: Run tests
+        run: cargo test --workspace --locked
+
+      - name: sccache stats (after build)
+        run: sccache --show-stats
+
+  check-code-quality:
+    name: Check code quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "check-code-quality"
+
+      - name: sccache stats (before build)
+        run: sccache --show-stats
+
+      - name: Check code format
+        # Scoped to our own crates — `--all` would reach into the
+        # path-dep'd generated `pyth-iota-rs/*` crates (a separate
+        # workspace marked `lints = allow`) and trip on their style.
+        run: cargo fmt -p pyth-iota-relayer-cli -p pyth-hermes-client -p iota-coin-pool -- --check
+
+      - name: Lint code
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: sccache stats (after build)
+        run: sccache --show-stats

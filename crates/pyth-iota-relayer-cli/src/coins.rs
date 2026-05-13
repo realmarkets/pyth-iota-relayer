@@ -38,10 +38,8 @@ pub async fn run(
         CoinsCmd::Merge { dust_below, into } => {
             merge::run(&pool, sender, client, key, dust_below, into).await
         }
-        CoinsCmd::Transfer {
-            to,
-            amount,
-            source,
-        } => transfer::run(&pool, sender, client, key, to, amount, source).await,
+        CoinsCmd::Transfer { to, amount, source } => {
+            transfer::run(&pool, sender, client, key, to, amount, source).await
+        }
     }
 }

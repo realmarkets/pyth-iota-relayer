@@ -24,7 +24,7 @@
 
 use anyhow::{anyhow, bail, Result};
 
-const PNAU_MAGIC: [u8; 4] = [b'P', b'N', b'A', b'U'];
+const PNAU_MAGIC: [u8; 4] = *b"PNAU";
 const PROOF_TYPE_WORMHOLE_MERKLE: u8 = 0;
 
 /// Read the embedded Wormhole VAA bytes out of an accumulator update.

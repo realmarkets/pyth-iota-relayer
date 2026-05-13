@@ -87,8 +87,8 @@ impl HermesClient {
         if !status.is_success() {
             return Err(anyhow!("hermes {status}: {body}"));
         }
-        let parsed: LatestResponse =
-            serde_json::from_str(&body).with_context(|| format!("decode hermes response: {body}"))?;
+        let parsed: LatestResponse = serde_json::from_str(&body)
+            .with_context(|| format!("decode hermes response: {body}"))?;
 
         let engine = base64::engine::general_purpose::STANDARD;
         let update_data = parsed
