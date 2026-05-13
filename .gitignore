@@ -1,2 +1,12 @@
 /target
 .move-bindgen
+
+# Local secrets — never commit.
+privkey.txt
+.env
+.env.*
+*.pem
+*.key
+
+# Editor / OS noise.
+.DS_Store
