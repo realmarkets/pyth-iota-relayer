@@ -2061,6 +2061,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pyth-hermes-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "pyth-iota-relayer-cli"
 version = "0.1.0"
 dependencies = [
@@ -2069,6 +2082,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "contracts-rs",
+ "futures",
  "hex",
  "iota-coin-pool",
  "iota-framework-rs",
@@ -2079,6 +2093,7 @@ dependencies = [
  "move-bindgen-runtime-iota",
  "move-stdlib-rs",
  "owo-colors",
+ "pyth-hermes-client",
  "reqwest",
  "serde",
  "serde_json",

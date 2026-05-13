@@ -42,22 +42,6 @@ pub fn iota(niota: u64) -> String {
     format!("{whole}.{frac_str} IOTA")
 }
 
-/// Variant of [`iota`] padded to a fixed number of decimals — useful
-/// for columnar tables where every value should occupy the same
-/// width.
-pub fn iota_fixed(niota: u64, decimals: u32) -> String {
-    let whole = niota / NIOTA_PER_IOTA;
-    let frac = niota % NIOTA_PER_IOTA;
-    let decimals = decimals.min(9) as usize;
-    if decimals == 0 {
-        // Round half-up to whole IOTA.
-        let rounded = whole + (frac >= NIOTA_PER_IOTA / 2) as u64;
-        return format!("{rounded} IOTA");
-    }
-    let frac_padded = format!("{frac:09}");
-    format!("{whole}.{} IOTA", &frac_padded[..decimals])
-}
-
 /// `0xb96280…0b7ed` — 6 leading hex chars + ellipsis + 4 trailing.
 /// Useful in log lines where a full 64-char id wastes space.
 pub fn short_id(id: ObjectId) -> String {

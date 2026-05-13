@@ -9,6 +9,7 @@
 use anyhow::Result;
 use iota_sdk_crypto::ed25519::Ed25519PrivateKey;
 use iota_sdk_graphql_client::Client;
+use iota_sdk_types::execution_status::ExecutionStatus;
 use move_bindgen_runtime::{ExecuteError, PtbBuilder};
 
 use crate::fmt::print_ok;
@@ -29,9 +30,20 @@ pub async fn execute(
         .with_auto_gas();
     match ptb.execute().await {
         Ok((effects, _cache)) => {
-            let digest = effects.as_v1().transaction_digest.to_string();
-            print_ok(op, &digest);
-            Ok(())
+            let v1 = effects.as_v1();
+            match v1.status() {
+                ExecutionStatus::Success => {
+                    print_ok(op, &v1.transaction_digest.to_string());
+                    Ok(())
+                }
+                ExecutionStatus::Failure { error, command } => Err(anyhow::anyhow!(
+                    "{op} aborted (digest={}, command={:?}): {:?}",
+                    v1.transaction_digest,
+                    command,
+                    error,
+                )),
+                other => Err(anyhow::anyhow!("{op} unknown status: {other:?}")),
+            }
         }
         Err(ExecuteError::Submit(e)) => Err(anyhow::anyhow!("{op} submit: {e}")),
         Err(e) => Err(anyhow::anyhow!("{op}: {e}")),

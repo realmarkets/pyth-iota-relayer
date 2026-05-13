@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 iota-coin-pool.workspace             = true
+pyth-hermes-client.workspace         = true
 move-bindgen-runtime.workspace       = true
 contracts-rs.workspace               = true
 wormhole-rs.workspace                = true
@@ -21,6 +22,7 @@ iota-sdk-crypto.workspace            = true
 iota-sdk-graphql-client.workspace    = true
 iota-sdk-transaction-builder.workspace = true
 tokio.workspace                      = true
+futures.workspace                    = true
 clap.workspace                       = true
 serde.workspace                      = true
 serde_yaml.workspace                 = true

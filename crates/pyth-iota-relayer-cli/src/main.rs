@@ -5,11 +5,15 @@
 
 mod cli;
 mod coins;
+mod feeds;
 mod fmt;
 mod network;
+mod on_chain;
+mod pyth_update;
 mod signer;
 mod start;
 mod submit;
+mod trigger;
 
 use anyhow::Result;
 use clap::Parser;
@@ -27,7 +31,7 @@ async fn main() -> Result<()> {
     let sender = resolve_sender(cli.key.as_deref())?;
 
     match cli.cmd {
-        Cmd::Start => start::run(client, sender, cli.network, cli.key).await,
+        Cmd::Start => start::run(client, sender, cli.network, cli.key, &cli.feeds).await,
         Cmd::Coins { cmd } => coins::run(cmd, client, sender, cli.network, cli.key).await,
     }
 }

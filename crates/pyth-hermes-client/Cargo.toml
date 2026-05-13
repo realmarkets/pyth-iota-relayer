@@ -1,0 +1,15 @@
+[package]
+name        = "pyth-hermes-client"
+description = "Pyth Hermes REST client: fetch the latest price updates + accumulator blobs."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+reqwest.workspace    = true
+serde.workspace      = true
+serde_json.workspace = true
+base64.workspace     = true
+hex.workspace        = true
+anyhow.workspace     = true
+thiserror.workspace  = true

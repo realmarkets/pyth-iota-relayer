@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
   "crates/iota-coin-pool",
+  "crates/pyth-hermes-client",
   "crates/pyth-iota-relayer-cli",
 ]
 
@@ -15,7 +16,8 @@ publish = false
 
 [workspace.dependencies]
 # Internal crates.
-iota-coin-pool = { path = "crates/iota-coin-pool" }
+iota-coin-pool      = { path = "crates/iota-coin-pool" }
+pyth-hermes-client  = { path = "crates/pyth-hermes-client" }
 
 # Generated bindings (one Cargo workspace per `move-bindgen build` run;
 # we depend on it via path-deps per crate).
@@ -38,7 +40,8 @@ iota-sdk-graphql-client      = { git = "https://github.com/iotaledger/iota-rust-
 iota-sdk-transaction-builder = { git = "https://github.com/iotaledger/iota-rust-sdk.git", rev = "dee951f490769f46c78ce84058f5d3cb8b606fd7", default-features = false }
 
 # Common deps.
-tokio        = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio        = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal"] }
+futures      = "0.3"
 clap         = { version = "4", features = ["derive", "env", "wrap_help"] }
 serde        = { version = "1", features = ["derive"] }
 serde_yaml   = "0.9"
