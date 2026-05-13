@@ -1,0 +1,18 @@
+flavour = "iota"
+
+framework_packages = []
+
+[output]
+format = "workspace"
+name = "pyth-iota-rs"
+runtime = { git = "https://github.com/jeremyletang/move-bindgen.git" }
+
+[packages.pyth]
+git    = "https://github.com/pyth-network/pyth-crosschain.git"
+rev    = "iota-contract-testnet"
+subdir = "target_chains/sui/contracts"
+
+[packages.wormhole]
+git    = "https://github.com/pyth-network/pyth-crosschain.git"
+rev    = "iota-contract-testnet"
+subdir = "target_chains/sui/vendor/wormhole_iota_testnet/wormhole"

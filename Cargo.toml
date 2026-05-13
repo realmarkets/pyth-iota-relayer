@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+
+members = [
+  "crates/iota-coin-pool",
+  "crates/pyth-iota-relayer-cli",
+]
+
+exclude = ["pyth-iota-rs"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# Internal crates.
+iota-coin-pool = { path = "crates/iota-coin-pool" }
+
+# Generated bindings (one Cargo workspace per `move-bindgen build` run;
+# we depend on it via path-deps per crate).
+contracts-rs      = { path = "pyth-iota-rs/contracts-rs" }
+wormhole-rs       = { path = "pyth-iota-rs/wormhole-rs" }
+iota-framework-rs = { path = "pyth-iota-rs/iota-framework-rs" }
+move-stdlib-rs    = { path = "pyth-iota-rs/move-stdlib-rs" }
+
+# move-bindgen runtime — aliased so generated code can `use
+# move_bindgen_runtime::*`. Single source of truth for the SDK version,
+# bumped here in lockstep with the iota-rust-sdk deps below.
+move-bindgen-runtime = { package = "move-bindgen-runtime-iota", git = "https://github.com/jeremyletang/move-bindgen.git" }
+
+# iota-rust-sdk crates. Rev matches what `move-bindgen` pins so the
+# generated bindings + the runtime crate + this binary all agree on
+# type identities.
+iota-sdk-types               = { git = "https://github.com/iotaledger/iota-rust-sdk.git", rev = "dee951f490769f46c78ce84058f5d3cb8b606fd7", default-features = false }
+iota-sdk-crypto              = { git = "https://github.com/iotaledger/iota-rust-sdk.git", rev = "dee951f490769f46c78ce84058f5d3cb8b606fd7", default-features = false, features = ["ed25519", "bech32"] }
+iota-sdk-graphql-client      = { git = "https://github.com/iotaledger/iota-rust-sdk.git", rev = "dee951f490769f46c78ce84058f5d3cb8b606fd7", default-features = false }
+iota-sdk-transaction-builder = { git = "https://github.com/iotaledger/iota-rust-sdk.git", rev = "dee951f490769f46c78ce84058f5d3cb8b606fd7", default-features = false }
+
+# Common deps.
+tokio        = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+clap         = { version = "4", features = ["derive", "env", "wrap_help"] }
+serde        = { version = "1", features = ["derive"] }
+serde_yaml   = "0.9"
+serde_json   = "1"
+reqwest      = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+base64       = "0.22"
+tracing      = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow       = "1"
+thiserror    = "2"
+hex          = "0.4"
+
+# Pretty output: aligned/bordered tables + ANSI colour.
+comfy-table  = "7"
+owo-colors   = "4"

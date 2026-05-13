@@ -1,0 +1,13 @@
+[package]
+name        = "iota-coin-pool"
+description = "Owner-side gas-coin pool + PTB-fee helpers for IOTA bots / relayers."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+move-bindgen-runtime.workspace         = true
+iota-sdk-types.workspace               = true
+iota-sdk-graphql-client.workspace      = true
+iota-sdk-transaction-builder.workspace = true
+thiserror.workspace                    = true
