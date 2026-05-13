@@ -17,7 +17,5 @@ pub fn load(key_string: &str) -> Result<(Ed25519PrivateKey, Address)> {
 /// Require `--key` / `IOTA_PRIVATE_KEY` to be set. Wraps the option
 /// into a clear error.
 pub fn require(key: Option<&str>) -> Result<&str> {
-    key.context(
-        "no private key configured — pass `--key iotaprivkey1…` or set `IOTA_PRIVATE_KEY`",
-    )
+    key.context("no private key configured — pass `--key iotaprivkey1…` or set `IOTA_PRIVATE_KEY`")
 }

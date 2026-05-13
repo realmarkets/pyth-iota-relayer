@@ -30,8 +30,8 @@ pub fn run(pool: &CoinPool) -> Result<()> {
         let dust = c.balance <= dust_threshold;
         let mut id_cell = Cell::new(c.id.to_string());
         let mut bal_cell = Cell::new(fmt::iota(c.balance)).set_alignment(CellAlignment::Right);
-        let mut ver_cell = Cell::new(c.object_ref.version().to_string())
-            .set_alignment(CellAlignment::Right);
+        let mut ver_cell =
+            Cell::new(c.object_ref.version().to_string()).set_alignment(CellAlignment::Right);
         if dust {
             id_cell = id_cell.fg(Color::DarkGrey);
             bal_cell = bal_cell.fg(Color::DarkGrey);

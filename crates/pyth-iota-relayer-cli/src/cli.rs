@@ -20,7 +20,7 @@ use iota_sdk_types::{Address, ObjectId};
 #[command(
     name = "pyth-iota-relayer",
     about = "Pyth → IOTA price relayer + gas-coin pool manager",
-    max_term_width = 80,
+    max_term_width = 80
 )]
 pub struct Cli {
     /// Network selector: `testnet` or `mainnet`.

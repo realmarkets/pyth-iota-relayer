@@ -24,10 +24,7 @@ pub async fn execute(
     op: &str,
 ) -> Result<()> {
     println!("       submitting…");
-    let ptb = ptb
-        .with_client(client)
-        .with_signer(signer)
-        .with_auto_gas();
+    let ptb = ptb.with_client(client).with_signer(signer).with_auto_gas();
     match ptb.execute().await {
         Ok((effects, _cache)) => {
             let v1 = effects.as_v1();

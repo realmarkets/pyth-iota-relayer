@@ -45,8 +45,7 @@ fn init_tracing() {
 
 fn build_client(network: Network, rpc_override: Option<&str>) -> Result<Client> {
     if let Some(url) = rpc_override {
-        return Client::new(url)
-            .map_err(|e| anyhow::anyhow!("invalid --rpc URL {url}: {e}"));
+        return Client::new(url).map_err(|e| anyhow::anyhow!("invalid --rpc URL {url}: {e}"));
     }
     Ok(match network {
         Network::Testnet => Client::new_testnet(),
@@ -62,10 +61,6 @@ fn build_client(network: Network, rpc_override: Option<&str>) -> Result<Client> 
 fn resolve_sender(key: Option<&str>) -> Result<iota_sdk_types::Address> {
     let key = signer::require(key)?;
     let (_, sender) = signer::load(key)?;
-    eprintln!(
-        "{} sender {}",
-        "·".dimmed(),
-        sender.to_string().dimmed(),
-    );
+    eprintln!("{} sender {}", "·".dimmed(), sender.to_string().dimmed(),);
     Ok(sender)
 }

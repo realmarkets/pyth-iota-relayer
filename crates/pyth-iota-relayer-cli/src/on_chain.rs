@@ -43,8 +43,8 @@ pub async fn resolve_price_info_ids(
     contracts: &Contracts,
     feeds: &[FeedConfig],
 ) -> Result<PriceInfoIds> {
-    let resolved: Vec<(FeedId, ObjectId)> = futures::future::try_join_all(feeds.iter().map(
-        |cfg| async {
+    let resolved: Vec<(FeedId, ObjectId)> =
+        futures::future::try_join_all(feeds.iter().map(|cfg| async {
             let mut ptb = PtbBuilder::new(sender)
                 .with_client(client.clone())
                 .with_package::<contracts_rs::Package>(contracts.pyth_package)
@@ -63,9 +63,8 @@ pub async fn resolve_price_info_ids(
                 .decode(arg)
                 .with_context(|| format!("decode price info id for {}", cfg.alias))?;
             anyhow::Ok((cfg.id, id))
-        },
-    ))
-    .await?;
+        }))
+        .await?;
     Ok(Arc::new(resolved.into_iter().collect()))
 }
 

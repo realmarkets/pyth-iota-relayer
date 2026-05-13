@@ -48,4 +48,3 @@ where
         .map_err(|_| D::Error::custom("feed id must be 32 bytes"))?;
     Ok(arr)
 }
-
