@@ -11,6 +11,7 @@ mod network;
 mod on_chain;
 mod pyth_update;
 mod relayer_coins;
+mod retry;
 mod signer;
 mod start;
 mod submit;

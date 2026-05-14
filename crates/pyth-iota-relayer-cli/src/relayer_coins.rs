@@ -16,6 +16,8 @@
 
 use anyhow::{anyhow, Context, Result};
 use iota_coin_pool::CoinPool;
+
+use crate::retry::with_retry;
 use iota_sdk_crypto::ed25519::Ed25519PrivateKey;
 use iota_sdk_graphql_client::Client;
 use iota_sdk_types::execution_status::ExecutionStatus;
@@ -36,9 +38,12 @@ pub struct GasPoolConfig {
 }
 
 pub async fn fetch_pool(client: &Client, sender: Address) -> Result<CoinPool> {
-    CoinPool::fetch_all(client, sender)
-        .await
-        .context("fetch coin pool")
+    with_retry("fetch coin pool", || async {
+        CoinPool::fetch_all(client, sender)
+            .await
+            .context("fetch coin pool")
+    })
+    .await
 }
 
 pub async fn warm_up(
