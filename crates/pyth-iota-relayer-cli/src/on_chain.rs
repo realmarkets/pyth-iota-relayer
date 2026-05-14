@@ -47,8 +47,7 @@ pub async fn resolve_price_info_ids(
     let resolved: Vec<(FeedId, ObjectId)> =
         futures::future::try_join_all(feeds.iter().map(|cfg| async {
             let label = format!("resolve price-info-id for {}", cfg.alias);
-            let id =
-                with_retry(&label, || resolve_one(client, sender, contracts, cfg)).await?;
+            let id = with_retry(&label, || resolve_one(client, sender, contracts, cfg)).await?;
             anyhow::Ok((cfg.id, id))
         }))
         .await?;
