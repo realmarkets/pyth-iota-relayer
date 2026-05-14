@@ -33,9 +33,13 @@ pub enum Reason {
 #[derive(Debug, Clone)]
 pub struct Fire<'a> {
     pub cfg: &'a FeedConfig,
-    pub hermes: &'a ParsedPrice,
-    pub on_chain: OnChainPrice,
     pub reason: Reason,
+    /// Seconds since the on-chain publish_time. The reason a
+    /// heartbeat-fire tripped (`> cfg.time_difference`).
+    pub stale_s: u64,
+    /// `|hermes - on_chain| / |on_chain| * 100`. The reason a
+    /// deviation-fire tripped (`> cfg.price_deviation`).
+    pub deviation_pct: f64,
 }
 
 pub fn fire<'a>(
@@ -55,18 +59,20 @@ pub fn fire<'a>(
         let Some(&chain_price) = on_chain.get(&cfg.id) else {
             continue;
         };
-        let reason = if now_unix.saturating_sub(chain_price.publish_time) > cfg.time_difference {
+        let stale_s = now_unix.saturating_sub(chain_price.publish_time);
+        let deviation_pct = relative_diff_percent(chain_price, hermes_price);
+        let reason = if stale_s > cfg.time_difference {
             Reason::Heartbeat
-        } else if relative_diff_percent(chain_price, hermes_price) > cfg.price_deviation {
+        } else if deviation_pct > cfg.price_deviation {
             Reason::Deviation
         } else {
             continue;
         };
         out.push(Fire {
             cfg,
-            hermes: hermes_price,
-            on_chain: chain_price,
             reason,
+            stale_s,
+            deviation_pct,
         });
     }
     out

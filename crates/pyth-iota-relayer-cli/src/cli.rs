@@ -47,7 +47,24 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
     /// Run the relayer daemon.
-    Start,
+    Start {
+        /// Maximum feeds per on-chain update tx. The relayer chunks
+        /// firing feeds into groups of this size and submits the
+        /// chunks in parallel. Smaller batches are cheaper per-feed
+        /// on IOTA's super-linear gas curve.
+        #[arg(long, default_value_t = 3)]
+        max_feeds_per_tx: usize,
+        /// Target value (in IOTA) for each hot gas coin maintained by
+        /// the daemon. The pool is sized so we can submit
+        /// `ceil(feeds / max_feeds_per_tx)` chunks in parallel.
+        #[arg(long, default_value_t = 1.0)]
+        gas_coin_target: f64,
+        /// Minimum IOTA below which a hot coin triggers a rebalance
+        /// (merge all + re-split into `gas_coin_target`-sized
+        /// pieces) at the end of the tick.
+        #[arg(long, default_value_t = 0.5)]
+        gas_coin_min: f64,
+    },
 
     /// Manage the gas-coin pool the daemon spends from.
     Coins {
