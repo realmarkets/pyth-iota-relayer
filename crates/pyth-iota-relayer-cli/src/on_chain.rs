@@ -13,6 +13,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use contracts_rs::price_info::PriceInfoObject;
@@ -21,10 +22,13 @@ use iota_sdk_graphql_client::Client;
 use iota_sdk_types::{Address, ObjectId};
 use move_bindgen_runtime::{ClientExt, PackageRegistry, PtbBuilder};
 use pyth_hermes_client::FeedId;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::feeds::FeedConfig;
 use crate::network::Contracts;
+
+const RESOLVE_ATTEMPTS: u32 = 4;
+const RESOLVE_BASE_BACKOFF: Duration = Duration::from_millis(250);
 
 pub type PriceInfoIds = Arc<HashMap<FeedId, ObjectId>>;
 
@@ -45,27 +49,62 @@ pub async fn resolve_price_info_ids(
 ) -> Result<PriceInfoIds> {
     let resolved: Vec<(FeedId, ObjectId)> =
         futures::future::try_join_all(feeds.iter().map(|cfg| async {
-            let mut ptb = PtbBuilder::new(sender)
-                .with_client(client.clone())
-                .with_package::<contracts_rs::Package>(contracts.pyth_package)
-                .with_auto_gas();
-            let arg = pyth_state::get_price_info_object_id(
-                &mut ptb,
-                contracts.pyth_state,
-                cfg.id.to_vec(),
-            )
-            .await;
-            let result = ptb
-                .inspect()
-                .await
-                .with_context(|| format!("resolve price info id for {}", cfg.alias))?;
-            let id: ObjectId = result
-                .decode(arg)
-                .with_context(|| format!("decode price info id for {}", cfg.alias))?;
+            let id = resolve_one_with_retry(client, sender, contracts, cfg).await?;
             anyhow::Ok((cfg.id, id))
         }))
         .await?;
     Ok(Arc::new(resolved.into_iter().collect()))
+}
+
+async fn resolve_one_with_retry(
+    client: &Client,
+    sender: Address,
+    contracts: &Contracts,
+    cfg: &FeedConfig,
+) -> Result<ObjectId> {
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 1..=RESOLVE_ATTEMPTS {
+        match resolve_one(client, sender, contracts, cfg).await {
+            Ok(id) => return Ok(id),
+            Err(e) => {
+                if attempt < RESOLVE_ATTEMPTS {
+                    let backoff = RESOLVE_BASE_BACKOFF * (1 << (attempt - 1));
+                    warn!(
+                        alias = %cfg.alias,
+                        attempt,
+                        backoff_ms = backoff.as_millis() as u64,
+                        error = %e,
+                        "retrying price-info-id resolve",
+                    );
+                    tokio::time::sleep(backoff).await;
+                }
+                last_err = Some(e);
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("resolve loop exited without an error")))
+}
+
+async fn resolve_one(
+    client: &Client,
+    sender: Address,
+    contracts: &Contracts,
+    cfg: &FeedConfig,
+) -> Result<ObjectId> {
+    let mut ptb = PtbBuilder::new(sender)
+        .with_client(client.clone())
+        .with_package::<contracts_rs::Package>(contracts.pyth_package)
+        .with_auto_gas();
+    let arg =
+        pyth_state::get_price_info_object_id(&mut ptb, contracts.pyth_state, cfg.id.to_vec()).await;
+    let result = ptb
+        .inspect()
+        .await
+        .with_context(|| format!("resolve price info id for {}", cfg.alias))?;
+    let id: ObjectId = result
+        .decode(arg)
+        .with_context(|| format!("decode price info id for {}", cfg.alias))?;
+    Ok(id)
 }
 
 pub struct OnChainReader {
