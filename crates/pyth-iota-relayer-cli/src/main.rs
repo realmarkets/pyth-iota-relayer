@@ -11,17 +11,16 @@ mod network;
 mod on_chain;
 mod pyth_update;
 mod relayer_coins;
+mod retry;
 mod signer;
 mod start;
 mod submit;
 mod trigger;
 
+use crate::cli::{Cli, Cmd, Network};
 use anyhow::Result;
 use clap::Parser;
 use iota_sdk_graphql_client::Client;
-use owo_colors::OwoColorize;
-
-use crate::cli::{Cli, Cmd, Network};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -77,6 +76,5 @@ fn build_client(network: Network, rpc_override: Option<&str>) -> Result<Client> 
 fn resolve_sender(key: Option<&str>) -> Result<iota_sdk_types::Address> {
     let key = signer::require(key)?;
     let (_, sender) = signer::load(key)?;
-    eprintln!("{} sender {}", "·".dimmed(), sender.to_string().dimmed(),);
     Ok(sender)
 }

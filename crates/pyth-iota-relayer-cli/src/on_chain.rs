@@ -25,6 +25,7 @@ use tracing::debug;
 
 use crate::feeds::FeedConfig;
 use crate::network::Contracts;
+use crate::retry::with_retry;
 
 pub type PriceInfoIds = Arc<HashMap<FeedId, ObjectId>>;
 
@@ -45,27 +46,34 @@ pub async fn resolve_price_info_ids(
 ) -> Result<PriceInfoIds> {
     let resolved: Vec<(FeedId, ObjectId)> =
         futures::future::try_join_all(feeds.iter().map(|cfg| async {
-            let mut ptb = PtbBuilder::new(sender)
-                .with_client(client.clone())
-                .with_package::<contracts_rs::Package>(contracts.pyth_package)
-                .with_auto_gas();
-            let arg = pyth_state::get_price_info_object_id(
-                &mut ptb,
-                contracts.pyth_state,
-                cfg.id.to_vec(),
-            )
-            .await;
-            let result = ptb
-                .inspect()
-                .await
-                .with_context(|| format!("resolve price info id for {}", cfg.alias))?;
-            let id: ObjectId = result
-                .decode(arg)
-                .with_context(|| format!("decode price info id for {}", cfg.alias))?;
+            let label = format!("resolve price-info-id for {}", cfg.alias);
+            let id = with_retry(&label, || resolve_one(client, sender, contracts, cfg)).await?;
             anyhow::Ok((cfg.id, id))
         }))
         .await?;
     Ok(Arc::new(resolved.into_iter().collect()))
+}
+
+async fn resolve_one(
+    client: &Client,
+    sender: Address,
+    contracts: &Contracts,
+    cfg: &FeedConfig,
+) -> Result<ObjectId> {
+    let mut ptb = PtbBuilder::new(sender)
+        .with_client(client.clone())
+        .with_package::<contracts_rs::Package>(contracts.pyth_package)
+        .with_auto_gas();
+    let arg =
+        pyth_state::get_price_info_object_id(&mut ptb, contracts.pyth_state, cfg.id.to_vec()).await;
+    let result = ptb
+        .inspect()
+        .await
+        .with_context(|| format!("resolve price info id for {}", cfg.alias))?;
+    let id: ObjectId = result
+        .decode(arg)
+        .with_context(|| format!("decode price info id for {}", cfg.alias))?;
+    Ok(id)
 }
 
 pub struct OnChainReader {
