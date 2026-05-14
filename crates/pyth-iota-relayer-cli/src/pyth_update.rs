@@ -23,7 +23,7 @@ use iota_sdk_crypto::ed25519::Ed25519PrivateKey;
 use iota_sdk_graphql_client::Client;
 use iota_sdk_transaction_builder::unresolved::{Command, SplitCoins};
 use iota_sdk_types::execution_status::ExecutionStatus;
-use iota_sdk_types::{Address, ObjectId};
+use iota_sdk_types::{Address, Digest, ObjectId, ObjectReference};
 use move_bindgen_runtime::{Argument, ClientExt, PtbBuilder, WaitOptions};
 use pyth_hermes_client::extract_vaa;
 use tracing::info;
@@ -73,9 +73,10 @@ impl PythUpdater {
         sender: Address,
         update_data: Vec<Vec<u8>>,
         fires: &[Fire<'_>],
-    ) -> Result<()> {
+        gas_coin: ObjectReference,
+    ) -> Result<Digest> {
         if fires.is_empty() {
-            return Ok(());
+            return Err(anyhow!("submit called with empty fires"));
         }
         let count = fires.len();
         let clock = ObjectId::CLOCK;
@@ -86,6 +87,7 @@ impl PythUpdater {
             .with_package::<contracts_rs::Package>(self.contracts.pyth_package)
             .with_package::<wormhole_rs::Package>(self.contracts.wormhole_package)
             .with_auto_gas();
+        ptb.gas([gas_coin]);
 
         let blob = update_data
             .into_iter()
@@ -151,13 +153,11 @@ impl PythUpdater {
         match v1.status() {
             ExecutionStatus::Success => {
                 let digest = v1.transaction_digest;
-                info!(digest = %digest, feeds = count, "pyth update submitted");
                 client
                     .wait_for_effects(&effects, WaitOptions::default())
                     .await
                     .context("wait for indexer to ingest pyth update")?;
-                info!(digest = %digest, "pyth update confirmed on chain");
-                Ok(())
+                Ok(digest)
             }
             ExecutionStatus::Failure { error, command } => Err(anyhow!(
                 "pyth update aborted (digest={}, command={:?}): {:?}",
