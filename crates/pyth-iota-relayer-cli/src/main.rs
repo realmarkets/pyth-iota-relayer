@@ -10,6 +10,7 @@ mod fmt;
 mod network;
 mod on_chain;
 mod pyth_update;
+mod relayer_coins;
 mod signer;
 mod start;
 mod submit;
@@ -31,9 +32,24 @@ async fn main() -> Result<()> {
     let sender = resolve_sender(cli.key.as_deref())?;
 
     match cli.cmd {
-        Cmd::Start => start::run(client, sender, cli.network, cli.key, &cli.feeds).await,
+        Cmd::Start {
+            max_feeds_per_tx,
+            gas_coin_target,
+            gas_coin_min,
+        } => {
+            let opts = start::Options {
+                max_feeds_per_tx,
+                gas_coin_target_niota: iota_from_f64(gas_coin_target),
+                gas_coin_min_niota: iota_from_f64(gas_coin_min),
+            };
+            start::run(client, sender, cli.network, cli.key, &cli.feeds, opts).await
+        }
         Cmd::Coins { cmd } => coins::run(cmd, client, sender, cli.network, cli.key).await,
     }
+}
+
+fn iota_from_f64(v: f64) -> u64 {
+    (v * 1_000_000_000.0).round() as u64
 }
 
 fn init_tracing() {

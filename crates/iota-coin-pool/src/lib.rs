@@ -71,6 +71,10 @@ pub enum PoolError {
     },
     #[error("source coin {0} not in pool")]
     SourceNotInPool(ObjectId),
+    #[error("pool has no IOTA coins to rebalance")]
+    NothingToRebalance,
+    #[error("total balance {have} nIOTA is below one target coin of {need} nIOTA")]
+    InsufficientBalance { have: u64, need: u64 },
 }
 
 impl CoinPool {
@@ -137,6 +141,14 @@ impl CoinPool {
 
     pub fn iter(&self) -> impl Iterator<Item = &CoinEntry> {
         self.coins.iter()
+    }
+
+    /// Object references for the top-`n` coins by balance. Caller
+    /// uses these as the explicit gas coin for parallel
+    /// transactions (one coin per tx — they can't share without
+    /// version-conflicting).
+    pub fn top_n_refs(&self, n: usize) -> Vec<ObjectReference> {
+        self.coins.iter().take(n).map(|c| c.object_ref).collect()
     }
 
     pub fn find(&self, id: ObjectId) -> Option<&CoinEntry> {
@@ -250,6 +262,68 @@ impl CoinPool {
             coins_to_merge: source_args,
         }));
         ptb
+    }
+
+    /// Build a "rebalance" PTB: merge every IOTA coin into the
+    /// largest (which becomes the tx's gas coin), then slice
+    /// `min(target_count, total / target_niota)` fresh coins of
+    /// `target_niota` off it and transfer them back to `sender`.
+    /// The remainder stays in the gas coin.
+    ///
+    /// Use to keep a hot pool of N owned coins at a target size for
+    /// parallel-tx workloads where each tx needs its own gas coin.
+    /// Errors if the pool is empty.
+    pub fn build_rebalance_ptb(
+        &self,
+        sender: Address,
+        target_niota: u64,
+        target_count: usize,
+    ) -> Result<(PtbBuilder, usize), PoolError> {
+        let Some(gas) = self.largest() else {
+            return Err(PoolError::NothingToRebalance);
+        };
+        let total: u64 = self.iter().map(|c| c.balance).sum();
+        let split_count = std::cmp::min(target_count as u64, total / target_niota.max(1)) as usize;
+        if split_count == 0 {
+            return Err(PoolError::InsufficientBalance {
+                have: total,
+                need: target_niota,
+            });
+        }
+
+        let mut ptb = PtbBuilder::new(sender);
+        ptb.gas([gas.object_ref]);
+        let others: Vec<Argument> = self
+            .iter()
+            .filter(|c| c.id != gas.id)
+            .map(|c| {
+                ptb.register_owned(c.id, c.object_ref);
+                ptb.inner.input(Input::ImmutableOrOwned(c.object_ref))
+            })
+            .collect();
+        if !others.is_empty() {
+            ptb.inner.command(Command::MergeCoins(MergeCoins {
+                coin: Argument::Gas,
+                coins_to_merge: others,
+            }));
+        }
+        let amounts: Vec<Argument> = (0..split_count)
+            .map(|_| ptb.inner.pure(target_niota))
+            .collect();
+        let split_result = ptb.inner.command(Command::SplitCoins(SplitCoins {
+            coin: Argument::Gas,
+            amounts,
+        }));
+        let split_idx = extract_result_idx(split_result);
+        let split_args: Vec<Argument> = (0..split_count as u16)
+            .map(|i| Argument::NestedResult(split_idx, i))
+            .collect();
+        let to = ptb.inner.pure(sender);
+        ptb.inner.command(Command::TransferObjects(TransferObjects {
+            objects: split_args,
+            address: to,
+        }));
+        Ok((ptb, split_count))
     }
 
     /// Build a PTB that splits `amount` MIST off `source`, transfers
