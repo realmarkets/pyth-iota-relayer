@@ -87,8 +87,7 @@ pub async fn run(
     let price_info_ids =
         resolve_price_info_ids(&client, sender, &contracts, &cfgs, dry_run_gas).await?;
     let reader = OnChainReader::new(client.clone(), &contracts, price_info_ids.clone());
-    let updater =
-        PythUpdater::new(&client, sender, contracts, price_info_ids, dry_run_gas).await?;
+    let updater = PythUpdater::new(&client, sender, contracts, price_info_ids, dry_run_gas).await?;
 
     let mut ticker = interval(TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
