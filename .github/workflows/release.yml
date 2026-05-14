@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*" ]
+env:
+  CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build Release Binary (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-build-${{ matrix.target }}
+
+      - name: Install cross
+        run: cargo install cross --locked
+
+      - name: Build release binary
+        run: |
+          unset RUSTC_WRAPPER SCCACHE_GHA_ENABLED
+          cross build --release --locked --target ${{ matrix.target }} --bin pyth-iota-relayer
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/pyth-iota-relayer dist/pyth-iota-relayer-linux-${{ matrix.arch }}
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyth-iota-relayer-linux-${{ matrix.arch }}
+          path: dist/pyth-iota-relayer-linux-${{ matrix.arch }}
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
