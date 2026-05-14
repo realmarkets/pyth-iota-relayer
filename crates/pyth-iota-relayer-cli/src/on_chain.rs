@@ -18,7 +18,7 @@ use anyhow::{Context, Result};
 use contracts_rs::price_info::PriceInfoObject;
 use contracts_rs::state as pyth_state;
 use iota_sdk_graphql_client::Client;
-use iota_sdk_types::{Address, ObjectId};
+use iota_sdk_types::{Address, ObjectId, ObjectReference};
 use move_bindgen_runtime::{ClientExt, PackageRegistry, PtbBuilder};
 use pyth_hermes_client::FeedId;
 use tracing::debug;
@@ -43,11 +43,15 @@ pub async fn resolve_price_info_ids(
     sender: Address,
     contracts: &Contracts,
     feeds: &[FeedConfig],
+    gas_coin: ObjectReference,
 ) -> Result<PriceInfoIds> {
     let resolved: Vec<(FeedId, ObjectId)> =
         futures::future::try_join_all(feeds.iter().map(|cfg| async {
             let label = format!("resolve price-info-id for {}", cfg.alias);
-            let id = with_retry(&label, || resolve_one(client, sender, contracts, cfg)).await?;
+            let id = with_retry(&label, || {
+                resolve_one(client, sender, contracts, cfg, gas_coin)
+            })
+            .await?;
             anyhow::Ok((cfg.id, id))
         }))
         .await?;
@@ -59,11 +63,13 @@ async fn resolve_one(
     sender: Address,
     contracts: &Contracts,
     cfg: &FeedConfig,
+    gas_coin: ObjectReference,
 ) -> Result<ObjectId> {
     let mut ptb = PtbBuilder::new(sender)
         .with_client(client.clone())
         .with_package::<contracts_rs::Package>(contracts.pyth_package)
         .with_auto_gas();
+    ptb.gas([gas_coin]);
     let arg =
         pyth_state::get_price_info_object_id(&mut ptb, contracts.pyth_state, cfg.id.to_vec()).await;
     let result = ptb

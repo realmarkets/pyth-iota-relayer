@@ -72,9 +72,22 @@ pub async fn run(
 
     relayer_coins::warm_up(&client, &signing_key, sender, gas_cfg).await?;
 
-    let price_info_ids = resolve_price_info_ids(&client, sender, &contracts, &cfgs).await?;
+    // Pick the largest pool coin to pin as the gas coin for every
+    // startup dry-run. These are `inspect()` calls (read-only); they
+    // never consume the coin, so reusing the same one across feeds is
+    // safe. Avoids `with_auto_gas` accidentally picking a dust coin
+    // from an unsorted indexer response.
+    let startup_pool = relayer_coins::fetch_pool(&client, sender).await?;
+    let dry_run_gas = startup_pool
+        .largest()
+        .ok_or_else(|| anyhow!("sender has no IOTA coins after warm-up"))?
+        .object_ref;
+    info!(coin = %dry_run_gas.object_id(), "pinned dry-run gas coin");
+
+    let price_info_ids =
+        resolve_price_info_ids(&client, sender, &contracts, &cfgs, dry_run_gas).await?;
     let reader = OnChainReader::new(client.clone(), &contracts, price_info_ids.clone());
-    let updater = PythUpdater::new(&client, sender, contracts, price_info_ids).await?;
+    let updater = PythUpdater::new(&client, sender, contracts, price_info_ids, dry_run_gas).await?;
 
     let mut ticker = interval(TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
