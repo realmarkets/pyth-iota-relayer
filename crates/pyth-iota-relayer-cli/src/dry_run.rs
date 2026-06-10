@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use iota_sdk_graphql_client::{Client, PaginationFilter};
 use iota_sdk_types::Address;
 use move_bindgen_runtime::PtbBuilder;
