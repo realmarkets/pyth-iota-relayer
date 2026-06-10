@@ -44,11 +44,13 @@ impl PythUpdater {
         sender: Address,
         contracts: Contracts,
         price_info_ids: PriceInfoIds,
+        dry_run_gas: ObjectReference,
     ) -> Result<Self> {
         let mut ptb = PtbBuilder::new(sender)
             .with_client(client.clone())
             .with_package::<contracts_rs::Package>(contracts.pyth_package)
             .with_auto_gas();
+        ptb.gas([dry_run_gas]);
         let fee_arg = pyth::get_total_update_fee(&mut ptb, contracts.pyth_state, 1u64).await;
         let inspect = ptb.inspect().await.context("probe pyth update fee")?;
         let base_update_fee: u64 = inspect.decode(fee_arg).context("decode update fee")?;
