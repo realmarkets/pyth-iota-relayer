@@ -5,6 +5,7 @@
 
 mod cli;
 mod coins;
+mod dry_run;
 mod feeds;
 mod fmt;
 mod network;

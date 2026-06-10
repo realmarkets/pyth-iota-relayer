@@ -14,8 +14,8 @@
 //! 5. `hot_potato_vector::destroy<PriceInfo>` to consume the potato.
 //!
 //! Price-info-object id resolution lives in [`crate::on_chain`]. This
-//! module only takes the id map as a constructor argument and probes
-//! the per-update fee at startup.
+//! module only probes the per-update fee at startup and uses the id map
+//! passed into each submit call.
 
 use anyhow::{anyhow, Context, Result};
 use contracts_rs::{hot_potato_vector, price_info::PriceInfo, pyth};
@@ -28,42 +28,33 @@ use move_bindgen_runtime::{Argument, ClientExt, PtbBuilder, WaitOptions};
 use pyth_hermes_client::extract_vaa;
 use tracing::info;
 
+use crate::dry_run::configure_inspect_gas;
 use crate::network::Contracts;
 use crate::on_chain::PriceInfoIds;
 use crate::trigger::Fire;
 
 pub struct PythUpdater {
     contracts: Contracts,
-    price_info_ids: PriceInfoIds,
     base_update_fee: u64,
 }
 
 impl PythUpdater {
-    pub async fn new(
-        client: &Client,
-        sender: Address,
-        contracts: Contracts,
-        price_info_ids: PriceInfoIds,
-        dry_run_gas: ObjectReference,
-    ) -> Result<Self> {
+    pub async fn new(client: &Client, sender: Address, contracts: Contracts) -> Result<Self> {
         let mut ptb = PtbBuilder::new(sender)
             .with_client(client.clone())
-            .with_package::<contracts_rs::Package>(contracts.pyth_package)
-            .with_auto_gas();
-        ptb.gas([dry_run_gas]);
+            .with_package::<contracts_rs::Package>(contracts.pyth_package);
+        configure_inspect_gas(client, sender, &mut ptb).await?;
         let fee_arg = pyth::get_total_update_fee(&mut ptb, contracts.pyth_state, 1u64).await;
         let inspect = ptb.inspect().await.context("probe pyth update fee")?;
         let base_update_fee: u64 = inspect.decode(fee_arg).context("decode update fee")?;
 
         info!(
-            feeds = price_info_ids.len(),
             base_update_fee_niota = base_update_fee,
             "pyth updater initialised",
         );
 
         Ok(Self {
             contracts,
-            price_info_ids,
             base_update_fee,
         })
     }
@@ -73,6 +64,7 @@ impl PythUpdater {
         client: &Client,
         signer: Ed25519PrivateKey,
         sender: Address,
+        price_info_ids: &PriceInfoIds,
         update_data: Vec<Vec<u8>>,
         fires: &[Fire<'_>],
         gas_coin: ObjectReference,
@@ -129,8 +121,7 @@ impl PythUpdater {
             .collect();
 
         for (i, f) in fires.iter().enumerate() {
-            let pio = self
-                .price_info_ids
+            let pio = price_info_ids
                 .get(&f.cfg.id)
                 .copied()
                 .ok_or_else(|| anyhow!("no price info object id for feed {}", f.cfg.alias))?;
